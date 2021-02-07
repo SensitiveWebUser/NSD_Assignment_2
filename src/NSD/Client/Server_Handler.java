@@ -1,8 +1,9 @@
 package NSD.Client;
 
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStreamReader;
+import NSD.Tools.Json_Encode_Decode;
+import org.json.JSONObject;
+
+import java.io.*;
 import java.net.Socket;
 
 public class Server_Handler implements Runnable {
@@ -22,11 +23,23 @@ public class Server_Handler implements Runnable {
 
         try {
 
+            Json_Encode_Decode json = new Json_Encode_Decode(); //TODO: Might need moving
             receive = new BufferedReader(new InputStreamReader(server.getInputStream()));
 
             while (true) {
 
-                String request = receive.readLine();
+                String command = "";
+                byte[] receiveBytes = receive.readLine().getBytes();
+                JSONObject request = json.Decode_Message(receiveBytes);
+
+                if(request.getInt("Type") == 1){
+                    command = request.getString("message");
+                }else if (request.getInt("Type") == 2){
+
+                }else {
+                    //TODO: what happens if type not found
+                }
+
                 System.out.println("[Server Message] Message: " + request);
 
             }

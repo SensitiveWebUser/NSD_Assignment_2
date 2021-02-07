@@ -1,15 +1,14 @@
 package NSD.Client;
 
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStreamReader;
-import java.io.PrintWriter;
+import NSD.Tools.Json_Encode_Decode;
+
+import java.io.*;
 import java.net.Socket;
 import java.time.LocalTime;
 
 public class Client {
 
-    private static PrintWriter sender;
+    private static OutputStream sender;
 
     Client(String ip, int socket) {
 
@@ -18,12 +17,14 @@ public class Client {
         } catch (IOException err) {
             System.out.println("Client Error | Error time: " + LocalTime.now() + " Error message: " + err.getMessage());
         } finally {
-            sender.close();
+            //sender.close(); TODO: check
         }
 
     }
 
     void Run(String ip, int socket) throws IOException {
+
+        Json_Encode_Decode json = new Json_Encode_Decode(); //TODO: Might need moving
 
         Socket server = new Socket(ip, socket);
         System.out.println("Client Starting, and trying to connect to port: " + socket);
@@ -31,8 +32,8 @@ public class Client {
         Server_Handler server_handler = new Server_Handler(server);
         new Thread(server_handler).start();
 
-        sender = new PrintWriter(server.getOutputStream(), true);
-        sender.println("Hello server. Time of connection: " + LocalTime.now());
+        sender = server.getOutputStream();
+        sender.write(json.Encode_Message("Client", ("Hello server. Time of connection: " + LocalTime.now())));
 
         BufferedReader keyboard = new BufferedReader(new InputStreamReader(System.in));
 
@@ -41,7 +42,12 @@ public class Client {
             if (input.equals("Exit")) {
                 break;
             } else {
-                sender.println(input);
+
+                byte[] jsonFile = json.Encode_Message("Alex", input);
+
+                if(jsonFile.length > 0)
+                    sender.write(jsonFile);
+
             }
         }
 

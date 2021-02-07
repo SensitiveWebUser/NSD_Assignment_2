@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.time.LocalTime;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -17,7 +18,7 @@ public class App {
 
         } catch (IOException err) {
 
-            System.out.println("Server Error | Point 2 | Error time: " + LocalTime.now() + " Error message: " + err.getMessage());
+            System.out.println("Server Error | Point 2 | Error time: " + LocalTime.now().format(DateTimeFormatter.ofPattern("hh:mm:ss")) + " Error message: " + err.getMessage());
 
         }
     }

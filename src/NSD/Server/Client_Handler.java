@@ -1,9 +1,9 @@
 package NSD.Server;
 
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStreamReader;
-import java.io.PrintWriter;
+import NSD.Tools.Json_Encode_Decode;
+import org.json.JSONObject;
+
+import java.io.*;
 import java.net.Socket;
 import java.time.LocalTime;
 
@@ -20,24 +20,36 @@ public class Client_Handler implements Runnable {
     public void run() {
 
         BufferedReader receive = null;
-        PrintWriter sender = null;
+        OutputStream sender = null;
 
         try {
 
-            receive = new BufferedReader(new InputStreamReader(client.getInputStream()));
-            sender = new PrintWriter(client.getOutputStream(), true);
+            Json_Encode_Decode json = new Json_Encode_Decode();
 
-            sender.println("Welcome client. Time of connection: " + LocalTime.now());
+            receive = new BufferedReader( new InputStreamReader(client.getInputStream()));
+            sender = client.getOutputStream();
+
+            sender.write(json.Encode_Message( "Server", "Welcome client. Time of connection: " + LocalTime.now()));
 
             while (true) {
 
-                String command = receive.readLine();
+                String command = "";
+                byte[] receiveBytes = receive.readLine().getBytes();
+                JSONObject request = json.Decode_Message(receiveBytes);
+
+                 if(request.getInt("Type") == 1){
+                     command = request.getString("message");
+                 }else if (request.getInt("Type") == 2){
+
+                 }else {
+                     //TODO: what happens if type not found
+                 }
 
                 if (command.equals("Ping")) {
-                    sender.println("Pong");
+                    sender.write(json.Encode_Message("Server", "Pong"));
                 } else {
                     System.out.println("[CLIENT MESSAGE] Message: " + command);
-                    sender.println("Message Received");
+                    sender.write(json.Encode_Message("Server", "Message Received"));
                 }
 
             }
@@ -46,7 +58,7 @@ public class Client_Handler implements Runnable {
             System.out.println("Server Error | Point 1 | Error time: " + LocalTime.now() + " Error message: " + err.getMessage());
 
         } finally {
-            sender.close();
+           // sender.close(); TODO: check
 
             try {
                 receive.close();
