@@ -2,54 +2,140 @@ package NSD.Client;
 
 import NSD.Tools.Json_Encode_Decode;
 
-import java.io.*;
+import java.io.BufferedOutputStream;
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStreamReader;
 import java.net.Socket;
 import java.time.LocalTime;
 
 public class Client {
 
-    private static OutputStream sender;
+    private static Socket server;
+    private static Json_Encode_Decode json;
+    private static BufferedOutputStream sender;
+    BufferedReader keyboard;
+
+    private static String userName;
 
     Client(String ip, int socket) {
 
+        keyboard = new BufferedReader(new InputStreamReader(System.in));
+        userName = userLogin();
+        Startup(ip, socket);
+
+    }
+
+
+    private String userLogin(){
+
+        String result = "";
+
+        while (result == ""){
+
+            result = "";
+            System.out.println("Please input login name");
+
+            try{
+
+                result = keyboard.readLine();
+
+            }catch (IOException err){
+                System.out.println("Input invalid");
+                result = "";
+            }
+        }
+        return result;
+
+    }
+
+    private void Startup(String ip, int socket) {
+
         try {
-            Run(ip, socket);
+
+            json = new Json_Encode_Decode();
+
+            server = new Socket(ip, socket);
+            sender = new BufferedOutputStream(server.getOutputStream());
+
+            new Thread(new Server_Handler(server)).start();
+
+            sender.write(Json_Encode_Decode.encodeJsonMessages("Client", "Hello server."));
+            sender.flush();
+
+            Run();
+
         } catch (IOException err) {
             System.out.println("Client Error | Error time: " + LocalTime.now() + " Error message: " + err.getMessage());
-        } finally {
-            //sender.close(); TODO: check
+        }finally {
+            System.out.println("Closing client");
+            try {
+                sender.close();
+                server.close();
+                System.exit(0);
+            }catch (IOException err){
+                System.exit(0);
+            }
+        }
+
+        //TODO:Make your client waits to get server again
+
+    }
+
+    void Run() {
+
+        while (true) {
+
+            int input = 0;
+
+            System.out.println("    1) Start channel");
+            System.out.println("    2) Subscribe to channel");
+            System.out.println("    3) Unsubscribe to channel");
+            System.out.println("    4) View Subscribed channels");
+            System.out.println("    5) Exit");
+
+            try{
+                String strInput = keyboard.readLine();
+                input = Integer.parseInt(strInput);
+            }catch (IOException err){
+                input = 0;
+            }catch (NumberFormatException err){
+                input = 0;
+            }
+
+            switch (input){
+                case 1:
+                    requestOpen();
+                    break;
+                case 2:
+                    requestSubscribe();
+                    break;
+                case 3:
+                    requestUnsubscribe();
+                    break;
+                case 4:
+                    subscribedChannels();
+                    break;
+                case 5:
+                    return;
+                default:
+                    System.out.println("known input");
+                    break;
+            }
+
         }
 
     }
 
-    void Run(String ip, int socket) throws IOException {
+    private void requestOpen() {
+    }
 
-        Json_Encode_Decode json = new Json_Encode_Decode(); //TODO: Might need moving
+    private void requestSubscribe() {
+    }
 
-        Socket server = new Socket(ip, socket);
-        System.out.println("Client Starting, and trying to connect to port: " + socket);
+    private void requestUnsubscribe() {
+    }
 
-        Server_Handler server_handler = new Server_Handler(server);
-        new Thread(server_handler).start();
-
-        sender = server.getOutputStream();
-        sender.write(json.Encode_Message("Client", ("Hello server. Time of connection: " + LocalTime.now())));
-
-        BufferedReader keyboard = new BufferedReader(new InputStreamReader(System.in));
-
-        while (true) {
-            String input = keyboard.readLine();
-            if (input.equals("Exit")) {
-                break;
-            } else {
-
-                byte[] jsonFile = json.Encode_Message("Alex", input);
-
-                if(jsonFile.length > 0)
-                    sender.write(jsonFile);
-
-            }
-        }
-
+    private void subscribedChannels() {
     }
 }

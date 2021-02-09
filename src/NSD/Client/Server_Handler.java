@@ -1,46 +1,56 @@
 package NSD.Client;
 
 import NSD.Tools.Json_Encode_Decode;
+import org.json.JSONArray;
 import org.json.JSONObject;
 
-import java.io.*;
+import java.io.BufferedInputStream;
+import java.io.IOException;
 import java.net.Socket;
 
 public class Server_Handler implements Runnable {
 
     private static Socket server;
+    private static BufferedInputStream receive;
+    private static Json_Encode_Decode json;
 
     public Server_Handler(Socket serverConnection) {
-
         server = serverConnection;
-
     }
 
     @Override
     public void run() {
 
-        BufferedReader receive = null;
-
         try {
 
-            Json_Encode_Decode json = new Json_Encode_Decode(); //TODO: Might need moving
-            receive = new BufferedReader(new InputStreamReader(server.getInputStream()));
+            json = new Json_Encode_Decode(); //TODO: Might need moving
+            receive = new BufferedInputStream(server.getInputStream());
 
             while (true) {
 
-                String command = "";
-                byte[] receiveBytes = receive.readLine().getBytes();
-                JSONObject request = json.Decode_Message(receiveBytes);
+                byte[] receiveBytes = new byte[1024];
 
-                if(request.getInt("Type") == 1){
-                    command = request.getString("message");
-                }else if (request.getInt("Type") == 2){
+                receive.read(receiveBytes);
+                JSONObject request = Json_Encode_Decode.decodeJson(receiveBytes);
 
-                }else {
+                //String command = "";
+
+                if (request.getString("_class").equals("Message")) {
+                    System.out.println("Author: " + request.getString("from") + " Message: " + request.getString("body"));
+                } else if (request.getString("_class").equals("GetRequest")) {
+
+                    JSONArray messages = request.getJSONArray("messages");
+
+                    if(messages.length() != 0){
+                        for(int x = 0; x < messages.length(); x++){
+                            JSONObject message =  messages.getJSONObject(x);
+                            System.out.println("Author: " + message.getString("from") + " Message: " + message.getString("body"));
+                        }
+                    }
+
+                } else {
                     //TODO: what happens if type not found
                 }
-
-                System.out.println("[Server Message] Message: " + request);
 
             }
 

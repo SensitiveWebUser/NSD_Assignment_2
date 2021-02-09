@@ -25,8 +25,8 @@ public class App {
 
     private static void Run(final int socket, final int clientLimit) throws IOException {
 
-         final ArrayList<Client_Handler> clients = new ArrayList<>();
-         ExecutorService client_Pool = Executors.newFixedThreadPool(clientLimit);
+        final ArrayList<Client_Handler> clients = new ArrayList<>();
+        ExecutorService client_Pool = Executors.newFixedThreadPool(clientLimit);
 
         ServerSocket app = new ServerSocket(socket);
         System.out.println("[Server] Server Started, now listening on port: " + app.getLocalPort());
