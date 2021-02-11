@@ -1,5 +1,7 @@
 package NSD.Server;
 
+import NSD.Tools.Database;
+
 import java.io.IOException;
 import java.net.ServerSocket;
 import java.net.Socket;
@@ -11,37 +13,53 @@ import java.util.concurrent.Executors;
 
 public class App {
 
+    static Database db;
+    static ServerSocket app;
+    static ExecutorService client_Pool;
+
+    static int clientLimit = 0;
+
     App(final int socket, final int clientLimit) {
+        this.clientLimit = clientLimit;
+        startup(socket, clientLimit);
+    }
+
+    private static void startup(final int socket, final int clientLimit) {
         try {
 
-            Run(socket, clientLimit);
+            db = new Database();
+            app = new ServerSocket(socket);
+            System.out.println("[Server] Server Started, now listening on port: " + app.getLocalPort());
+
+            client_Pool = Executors.newFixedThreadPool(clientLimit);
+            Run();
 
         } catch (IOException err) {
-
             System.out.println("Server Error | Point 2 | Error time: " + LocalTime.now().format(DateTimeFormatter.ofPattern("hh:mm:ss")) + " Error message: " + err.getMessage());
-
+            System.exit(0);
         }
     }
 
-    private static void Run(final int socket, final int clientLimit) throws IOException {
+    private static void Run() throws IOException {
 
-        final ArrayList<Client_Handler> clients = new ArrayList<>();
-        ExecutorService client_Pool = Executors.newFixedThreadPool(clientLimit);
+        ArrayList<String> channels = db.channels();
+        ArrayList<Client_Handler> clients = new ArrayList<>();
 
-        ServerSocket app = new ServerSocket(socket);
-        System.out.println("[Server] Server Started, now listening on port: " + app.getLocalPort());
+        int activeClients = 0;
 
         while (true) {
 
-            Socket client = app.accept();
+            //while (activeClients < clientLimit){
+                Socket client = app.accept();
+                activeClients++;
 
-            Client_Handler clientThread = new Client_Handler(client);
-            clients.add(clientThread);
+                Client_Handler clientThread = new Client_Handler(client, clients, channels, activeClients, db);
+                clients.add(clientThread);
 
-            client_Pool.execute(clientThread);
+                client_Pool.execute(clientThread);
+            //}
 
         }
-
     }
 
 }

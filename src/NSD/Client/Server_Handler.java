@@ -28,44 +28,56 @@ public class Server_Handler implements Runnable {
 
             while (true) {
 
-                byte[] receiveBytes = new byte[1024];
+                byte[] receiveBytes = new byte[1024 * 2];
 
                 receive.read(receiveBytes);
                 JSONObject request = Json_Encode_Decode.decodeJson(receiveBytes);
-
-                //String command = "";
-
-                if (request.getString("_class").equals("Message")) {
-                    System.out.println("Author: " + request.getString("from") + " Message: " + request.getString("body"));
-                } else if (request.getString("_class").equals("GetRequest")) {
-
-                    JSONArray messages = request.getJSONArray("messages");
-
-                    if(messages.length() != 0){
-                        for(int x = 0; x < messages.length(); x++){
-                            JSONObject message =  messages.getJSONObject(x);
-                            System.out.println("Author: " + message.getString("from") + " Message: " + message.getString("body"));
-                        }
-                    }
-
-                } else {
-                    //TODO: what happens if type not found
-                }
+                commands(request);
 
             }
 
         } catch (IOException err) {
 
         } finally {
-
-            try {
-                receive.close();
-                server.close();
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-
+            closeConnection();
         }
 
     }
+
+    private static void commands(final JSONObject request) throws IOException {
+
+        switch (request.getString("_class")) {
+
+            case "SuccessResponse":
+                System.out.println("[Server] Success Request");
+                break;
+
+            case "MessageListResponse":
+
+                break;
+
+            case "ErrorResponse":
+                System.out.println(request.getString("error"));
+                break;
+
+            case "Message":  //TODO: Need to remove this request!
+                System.out.println(request.getString("from") + " sent: " + request.getString("body"));
+                break;
+
+            default:
+                System.out.println("Unknown request from server!");
+                break;
+
+        }
+    }
+
+    private static void closeConnection() {
+        try {
+            receive.close();
+            server.close();
+        } catch (IOException err) {
+            System.out.println("Critical fail!");
+        }
+    }
+
 }

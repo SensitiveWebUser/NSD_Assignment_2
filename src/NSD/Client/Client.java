@@ -14,11 +14,10 @@ public class Client {
     private static Socket server;
     private static Json_Encode_Decode json;
     private static BufferedOutputStream sender;
+    private static String userName;
     BufferedReader keyboard;
 
-    private static String userName;
-
-    Client(String ip, int socket) {
+    Client(final String ip, final int socket) {
 
         keyboard = new BufferedReader(new InputStreamReader(System.in));
         userName = userLogin();
@@ -27,20 +26,20 @@ public class Client {
     }
 
 
-    private String userLogin(){
+    private String userLogin() {
 
         String result = "";
 
-        while (result == ""){
+        while (result == "") {
 
             result = "";
             System.out.println("Please input login name");
 
-            try{
+            try {
 
                 result = keyboard.readLine();
 
-            }catch (IOException err){
+            } catch (IOException err) {
                 System.out.println("Input invalid");
                 result = "";
             }
@@ -49,7 +48,7 @@ public class Client {
 
     }
 
-    private void Startup(String ip, int socket) {
+    private void Startup(final String ip, final int socket) {
 
         try {
 
@@ -60,22 +59,17 @@ public class Client {
 
             new Thread(new Server_Handler(server)).start();
 
-            sender.write(Json_Encode_Decode.encodeJsonMessages("Client", "Hello server."));
+            sender.write(Json_Encode_Decode.encodeJsonOpen(userName));
             sender.flush();
 
             Run();
 
         } catch (IOException err) {
             System.out.println("Client Error | Error time: " + LocalTime.now() + " Error message: " + err.getMessage());
-        }finally {
+        } finally {
             System.out.println("Closing client");
-            try {
-                sender.close();
-                server.close();
-                System.exit(0);
-            }catch (IOException err){
-                System.exit(0);
-            }
+            closeConnection();
+            System.exit(0);
         }
 
         //TODO:Make your client waits to get server again
@@ -88,24 +82,24 @@ public class Client {
 
             int input = 0;
 
-            System.out.println("    1) Start channel");
+            System.out.println("    1) Send message in channel");
             System.out.println("    2) Subscribe to channel");
             System.out.println("    3) Unsubscribe to channel");
             System.out.println("    4) View Subscribed channels");
             System.out.println("    5) Exit");
 
-            try{
+            try {
                 String strInput = keyboard.readLine();
                 input = Integer.parseInt(strInput);
-            }catch (IOException err){
+            } catch (IOException err) {
                 input = 0;
-            }catch (NumberFormatException err){
+            } catch (NumberFormatException err) {
                 input = 0;
             }
 
-            switch (input){
+            switch (input) {
                 case 1:
-                    requestOpen();
+                    requestPublish();
                     break;
                 case 2:
                     requestSubscribe();
@@ -117,7 +111,9 @@ public class Client {
                     subscribedChannels();
                     break;
                 case 5:
-                    return;
+                    closeConnection();
+                    System.exit(0);
+                    break;
                 default:
                     System.out.println("known input");
                     break;
@@ -127,7 +123,40 @@ public class Client {
 
     }
 
-    private void requestOpen() {
+    private void requestPublish() {
+
+        try {
+            while (true){
+                String channel = "";
+                String message = "";
+
+
+                try {
+                    System.out.println("Please input channel to message (don't add channel if messaging your channel)");
+                    channel = keyboard.readLine();
+                    System.out.println("Please input the message");
+                    message = keyboard.readLine();
+                } catch (IOException err) {
+                    channel = "";
+                    message = "";
+                }
+
+                if(message != ""){
+
+                    if(channel == "") channel = userName;
+
+                    sender.write(json.encodeJsonPublish(channel, userName, message));
+                    sender.flush();
+                    return;
+
+                }else {
+                    System.out.println("Bad input");
+                }
+            }
+        }catch (IOException err){
+
+        }
+
     }
 
     private void requestSubscribe() {
@@ -138,4 +167,14 @@ public class Client {
 
     private void subscribedChannels() {
     }
+
+    private static void closeConnection() {
+        try {
+            sender.close();
+            server.close();
+        } catch (IOException err) {
+            System.out.println("Critical fail!");
+        }
+    }
+
 }
