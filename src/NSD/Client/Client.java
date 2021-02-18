@@ -1,11 +1,8 @@
 package NSD.Client;
 
-import NSD.Tools.Json_Encode_Decode;
+import NSD.Utils.Json_Encode_Decode;
 
-import java.io.BufferedOutputStream;
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStreamReader;
+import java.io.*;
 import java.net.Socket;
 import java.time.LocalTime;
 
@@ -13,7 +10,7 @@ public class Client {
 
     private static Socket server;
     private static Json_Encode_Decode json;
-    private static BufferedOutputStream sender;
+    private static PrintWriter sender;
     private static String userName;
     BufferedReader keyboard;
 
@@ -25,6 +22,14 @@ public class Client {
 
     }
 
+    private static void closeConnection() {
+        try {
+            sender.close();
+            server.close();
+        } catch (IOException err) {
+            System.out.println("Critical fail!");
+        }
+    }
 
     private String userLogin() {
 
@@ -55,12 +60,11 @@ public class Client {
             json = new Json_Encode_Decode();
 
             server = new Socket(ip, socket);
-            sender = new BufferedOutputStream(server.getOutputStream());
+            sender = new PrintWriter(server.getOutputStream());
 
             new Thread(new Server_Handler(server)).start();
 
             sender.write(Json_Encode_Decode.encodeJsonOpen(userName));
-            sender.flush();
 
             Run();
 
@@ -87,6 +91,7 @@ public class Client {
             System.out.println("    3) Unsubscribe to channel");
             System.out.println("    4) View Subscribed channels");
             System.out.println("    5) Exit");
+
 
             try {
                 String strInput = keyboard.readLine();
@@ -125,36 +130,32 @@ public class Client {
 
     private void requestPublish() {
 
-        try {
-            while (true){
-                String channel = "";
-                String message = "";
+        while (true) {
+            String channel = "";
+            String message = "";
 
 
-                try {
-                    System.out.println("Please input channel to message (don't add channel if messaging your channel)");
-                    channel = keyboard.readLine();
-                    System.out.println("Please input the message");
-                    message = keyboard.readLine();
-                } catch (IOException err) {
-                    channel = "";
-                    message = "";
-                }
-
-                if(message != ""){
-
-                    if(channel == "") channel = userName;
-
-                    sender.write(json.encodeJsonPublish(channel, userName, message));
-                    sender.flush();
-                    return;
-
-                }else {
-                    System.out.println("Bad input");
-                }
+            try {
+                System.out.println("Please input channel to message (don't add channel if messaging your channel)");
+                channel = keyboard.readLine();
+                System.out.println("Please input the message");
+                message = keyboard.readLine();
+            } catch (IOException err) {
+                channel = "";
+                message = "";
             }
-        }catch (IOException err){
 
+            if (!(message.equals(""))) {
+
+                if (channel.equals("")) {
+                    channel = userName;
+                }
+
+                sender.println(Json_Encode_Decode.encodeJsonPublish(channel, userName, message));
+                return;
+            } else {
+                System.out.println("Bad input");
+            }
         }
 
     }
@@ -166,15 +167,6 @@ public class Client {
     }
 
     private void subscribedChannels() {
-    }
-
-    private static void closeConnection() {
-        try {
-            sender.close();
-            server.close();
-        } catch (IOException err) {
-            System.out.println("Critical fail!");
-        }
     }
 
 }

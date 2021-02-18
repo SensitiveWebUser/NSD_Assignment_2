@@ -1,6 +1,6 @@
 package NSD.Server;
 
-import NSD.Tools.Database;
+import NSD.Utils.Database;
 
 import java.io.IOException;
 import java.net.ServerSocket;
@@ -19,10 +19,15 @@ public class App {
 
     static int clientLimit = 0;
 
+    public static void main(String[] args) {
+        startup(12345, 10);
+    }
+
     App(final int socket, final int clientLimit) {
-        this.clientLimit = clientLimit;
+        App.clientLimit = clientLimit;
         startup(socket, clientLimit);
     }
+
 
     private static void startup(final int socket, final int clientLimit) {
         try {
@@ -42,23 +47,16 @@ public class App {
 
     private static void Run() throws IOException {
 
-        ArrayList<String> channels = db.channels();
+        ArrayList<String> channels = Database.channels();
         ArrayList<Client_Handler> clients = new ArrayList<>();
-
-        int activeClients = 0;
 
         while (true) {
 
-            //while (activeClients < clientLimit){
-                Socket client = app.accept();
-                activeClients++;
+            Socket client = app.accept();
 
-                Client_Handler clientThread = new Client_Handler(client, clients, channels, activeClients, db);
-                clients.add(clientThread);
-
-                client_Pool.execute(clientThread);
-            //}
-
+            Client_Handler clientThread = new Client_Handler(client, channels, db);
+            clients.add(clientThread);
+            client_Pool.execute(clientThread);
         }
     }
 

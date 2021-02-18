@@ -1,149 +1,146 @@
 package NSD.Server;
 
-import NSD.Tools.Database;
-import NSD.Tools.Json_Encode_Decode;
+import NSD.Utils.Database;
+import NSD.Utils.Json_Encode_Decode;
 import org.json.JSONException;
 import org.json.JSONObject;
 
-import java.io.BufferedInputStream;
-import java.io.BufferedOutputStream;
-import java.io.IOException;
+import java.io.*;
 import java.net.Socket;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalTime;
 import java.util.ArrayList;
+import java.util.HashMap;
 
 public class Client_Handler implements Runnable {
 
+    private final Json_Encode_Decode json = new Json_Encode_Decode();
     private static Database db;
     private static Socket client;
-    private final static Json_Encode_Decode json = new Json_Encode_Decode();
 
-    private static BufferedInputStream receive;
-    private static BufferedOutputStream sender;
+    private BufferedReader receive;
+    private PrintWriter sender;
 
-    private static ArrayList<Client_Handler> clients;
     private static ArrayList<String> channels;
+    private HashMap<String, Integer> activeChannels = new HashMap<>();
 
-    private static int activeClients = 0;
-
-    public Client_Handler(final Socket client, final ArrayList<Client_Handler> clients, final ArrayList<String> channels, final int activeClients, final Database db) {
+    public Client_Handler(final Socket client, final ArrayList<String> channels, final Database db) {
         try {
-            setup(client, clients, channels, activeClients,db);
+            setup(client, channels, db);
         } catch (IOException err) {
             System.out.println("Server Error | Point 1 | Error time: " + LocalTime.now() + " Error message: " + err.getMessage());
             closeConnection();
         }
     }
 
-    private void setup(final Socket client, final ArrayList<Client_Handler> clients, final ArrayList<String> channels, final int activeClients, final Database db) throws IOException {
-
-        this.db = db;
-        this.activeClients = activeClients;
-
-        Client_Handler.clients = clients;
-        Client_Handler.channels = channels;
-
-        Client_Handler.client = client;
-
-        receive = new BufferedInputStream(client.getInputStream());
-        sender = new BufferedOutputStream(client.getOutputStream());
-
-        byte[] se = json.encodeJsonMessage("Server", "Welcome client. Time of connection: " + LocalTime.now());
-        sender.write(se);
-        sender.flush();
-
-    }
-
-    @Override
-    public void run() {
+    private void commands(final JSONObject request) throws IOException {
 
         try {
-            while (true) {
-
-                byte[] byteReceived = new byte[1024 * 2];
-                receive.read(byteReceived);
-
-                commands(Json_Encode_Decode.decodeJson(byteReceived));
-
-            }
-        } catch (IOException e) {
-            closeConnection();
-        }
-    }
-
-    private static void commands(final JSONObject request) throws IOException {
-
-        try{
-
-                switch (request.getString("_class")) {
+            switch (request.getString("_class")) {
 
                 case "PublishRequest":
-                    if((channels.contains(request.getString("identity")))){
-                        //TODO: Add message to channel/ push message to all users in channel
-                        if(db.addMessage(request.getString("message").getBytes(StandardCharsets.UTF_8),request.getString("identity"))){
-                            sender.write(json.encodeSuccess());
-                            sender.write(json.encodeJsonMessage(request.getString("identity"), json.decodeJson(request.getString("message").getBytes(StandardCharsets.UTF_8)).getString("body")));
-                        }else {
-                            sender.write(json.encodeError(3,"Unable to update db with message"));
+                    if ((activeChannels.containsKey(request.getString("identity")))) {
+                        JSONObject message = request.getJSONObject("message");
+                        message.put("when", db.getChannelMessageNumber(request.getString("identity")) + 1);
+                        if (Database.addMessage(message.toString().getBytes(StandardCharsets.UTF_8), request.getString("identity"))) {
+                            sender.println(Json_Encode_Decode.encodeSuccess());
+                        } else {
+                            if(!(activeChannels.containsKey(request.getString("identity")))) sender.println(Json_Encode_Decode.encodeError(3, "Can't send message. Not in assigned channel"));
+                            else if((activeChannels.containsKey(request.getString("identity")))) sender.println(Json_Encode_Decode.encodeError(3, "Unable to update db with message"));
                         }
-                        sender.flush();
+                    }else if(!(activeChannels.containsKey(request.getString("identity")))) {
+                        sender.println(Json_Encode_Decode.encodeError(3, "Can't send message. Not in assigned channel"));
                     }
                     break;
 
                 case "OpenRequest":
-                    if(!(channels.contains(request.getString("identity")))){
+                    if (!(channels.contains(request.getString("identity")))) {
+                        Database.addChannel(request.getString("identity"));
                         channels.add(request.getString("identity"));
-                        sender.write(json.encodeSuccess());
-                        sender.flush();
+                        activeChannels.put(request.getString("identity"), 0);
+                        sender.println(Json_Encode_Decode.encodeSuccess());
+                    } else if (channels.contains(request.getString("identity"))) {
+                        activeChannels.put(request.getString("identity"), db.getChannelMessageNumber(request.getString("identity")));
+                        sender.println(Json_Encode_Decode.encodeSuccess());
                     }else {
-                        String message = "Unknown error";
-
-                        if(channels.contains(request.getString("identity"))) message = "Channel open : " + request.getString("identity");
-
-                        sender.write(json.encodeError(3, message));
-                        sender.flush();
+                        sender.println(Json_Encode_Decode.encodeError(3, "Unknown error"));
                     }
                     break;
 
                 case "GetRequest":
-                    sender.write(json.encodeMessageList(request.getString("identity"), 50, db));
-                    sender.flush();
+                    sender.println(Json_Encode_Decode.encodeMessageList(request.getString("identity"), request.getInt("after"), db));
                     break;
 
                 case "SubscribeRequest":
-                    //TODO: Add Sub to channel;
+                    if (!(activeChannels.containsKey(request.getString("identity"))) && channels.contains(request.getString("identity"))) {
+                        activeChannels.put(request.getString("identity"), db.getChannelMessageNumber(request.getString("identity")));
+                        sender.println(Json_Encode_Decode.encodeSuccess());
+                    }else if (activeChannels.containsKey(request.getString("identity"))) {
+                        sender.println(Json_Encode_Decode.encodeError(3, "Already in channel"));
+                    }else if (!(channels.contains(request.getString("identity")))) {
+                        sender.println(Json_Encode_Decode.encodeError(3, "Channel not found"));
+                    } else {
+                        sender.println(Json_Encode_Decode.encodeError(3, "Unknown error"));
+                    }
                     break;
 
                 case "UnsubscribeRequest":
-                    //TODO: Add Unsub to channel;
-                    break;
-
-                case "Message": //TODO: Need to remove this request!
-                    System.out.println("[CLIENT MESSAGE] Message: " + request.getString("body"));
+                    if ((activeChannels.containsKey(request.getString("identity")))) {
+                        activeChannels.remove(request.getString("identity"));
+                        sender.println(Json_Encode_Decode.encodeSuccess());
+                    } else if (!(activeChannels.containsKey(request.getString("identity")))) {
+                        sender.println(Json_Encode_Decode.encodeError(1, ""));
+                    }else {
+                        sender.println(Json_Encode_Decode.encodeError(3, "Unknown error"));
+                    }
                     break;
 
                 default:
+                    sender.println(json.encodeError(3, "Unknown request"));
                     System.out.println("Unknown request from client!");
                     break;
 
             }
 
-        }catch (JSONException err){
-            sender.write(json.encodeError(3, "Bad Request!"));
+            System.out.println("Received Json: " + request);
+
+        } catch (JSONException err) {
+            sender.println(Json_Encode_Decode.encodeError(3, "Bad Request!"));
             sender.flush();
         }
     }
 
-    private static void closeConnection() {
+    private void closeConnection() {
         try {
-            activeClients --;
             receive.close();
             sender.close();
             client.close();
         } catch (IOException err) {
             System.out.println("Critical fail!");
-        }finally {
+        }
+    }
+
+    private void setup(Socket client, final ArrayList<String> channels, final Database db) throws IOException {
+
+        Client_Handler.db = db;
+
+        Client_Handler.client = client;
+        Client_Handler.channels = channels;
+
+        receive = new BufferedReader(new InputStreamReader(client.getInputStream()));
+        sender = new PrintWriter(client.getOutputStream(), true);
+
+    }
+
+    @Override
+    public void run() {
+        try {
+            while (true) {
+                String input = receive.readLine();
+                commands(Json_Encode_Decode.decodeJson(input));
+            }
+        } catch (IOException e) {
+            closeConnection();
         }
     }
 

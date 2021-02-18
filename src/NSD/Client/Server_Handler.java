@@ -1,47 +1,22 @@
 package NSD.Client;
 
-import NSD.Tools.Json_Encode_Decode;
-import org.json.JSONArray;
+import NSD.Utils.Json_Encode_Decode;
 import org.json.JSONObject;
 
 import java.io.BufferedInputStream;
+import java.io.BufferedReader;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.net.Socket;
 
 public class Server_Handler implements Runnable {
 
     private static Socket server;
-    private static BufferedInputStream receive;
+    private static BufferedReader receive;
     private static Json_Encode_Decode json;
 
     public Server_Handler(Socket serverConnection) {
         server = serverConnection;
-    }
-
-    @Override
-    public void run() {
-
-        try {
-
-            json = new Json_Encode_Decode(); //TODO: Might need moving
-            receive = new BufferedInputStream(server.getInputStream());
-
-            while (true) {
-
-                byte[] receiveBytes = new byte[1024 * 2];
-
-                receive.read(receiveBytes);
-                JSONObject request = Json_Encode_Decode.decodeJson(receiveBytes);
-                commands(request);
-
-            }
-
-        } catch (IOException err) {
-
-        } finally {
-            closeConnection();
-        }
-
     }
 
     private static void commands(final JSONObject request) throws IOException {
@@ -53,7 +28,7 @@ public class Server_Handler implements Runnable {
                 break;
 
             case "MessageListResponse":
-
+                System.out.println("Received message list " + request);
                 break;
 
             case "ErrorResponse":
@@ -78,6 +53,26 @@ public class Server_Handler implements Runnable {
         } catch (IOException err) {
             System.out.println("Critical fail!");
         }
+    }
+
+    @Override
+    public void run() {
+
+        try {
+
+            json = new Json_Encode_Decode();
+            receive = new BufferedReader(new InputStreamReader(server.getInputStream()));
+
+            while (true) {
+                commands(Json_Encode_Decode.decodeJson(receive.readLine()));
+            }
+
+        } catch (IOException err) {
+
+        } finally {
+            closeConnection();
+        }
+
     }
 
 }
