@@ -3,7 +3,6 @@ package NSD.Client;
 import NSD.Utils.Json_Encode_Decode;
 import org.json.JSONObject;
 
-import java.io.BufferedInputStream;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
@@ -11,9 +10,9 @@ import java.net.Socket;
 
 public class Server_Handler implements Runnable {
 
+    private static final Json_Encode_Decode json = new Json_Encode_Decode();
     private static Socket server;
     private static BufferedReader receive;
-    private static Json_Encode_Decode json;
 
     public Server_Handler(Socket serverConnection) {
         server = serverConnection;
@@ -60,11 +59,10 @@ public class Server_Handler implements Runnable {
 
         try {
 
-            json = new Json_Encode_Decode();
             receive = new BufferedReader(new InputStreamReader(server.getInputStream()));
 
             while (true) {
-                commands(Json_Encode_Decode.decodeJson(receive.readLine()));
+                commands(json.decodeJson(receive.readLine()));
             }
 
         } catch (IOException err) {

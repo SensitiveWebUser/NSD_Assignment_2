@@ -10,8 +10,8 @@ import java.util.ArrayList;
 
 public class Database {
 
-    private static Connection conn;
     private static final SQLiteConfig config = new SQLiteConfig();
+    private static Connection conn;
 
     public Database() {
 
@@ -37,7 +37,7 @@ public class Database {
 
     }
 
-    private static ResultSet selectQuery(final String query) {
+    private ResultSet selectQuery(final String query) {
 
         try {
 
@@ -51,26 +51,7 @@ public class Database {
         }
     }
 
-    public Integer getChannelMessageNumber(final String channel_name) {
-        int result = 0;
-        try{
-
-            final int channel_id = channelIdWhereName(channel_name);
-            if (channel_id != 0) {
-
-                ResultSet rs = selectQuery("SELECT COUNT(*) AS messages FROM table_messages WHERE channel_id = " + channel_id + ';');
-                rs.next();
-                result = rs.getInt("messages");
-
-            }
-
-        }catch (SQLException err){
-        }finally {
-            return result;
-        }
-    }
-
-    public static int channelIdWhereName(final String channel_name) {
+    public int channelIdWhereName(final String channel_name) {
 
         int id = 0;
 
@@ -84,7 +65,7 @@ public class Database {
         }
     }
 
-    public static ArrayList<String> channels() {
+    public ArrayList<String> channels() {
 
         ArrayList<String> channels = new ArrayList<>();
 
@@ -102,7 +83,7 @@ public class Database {
 
     }
 
-    public static JSONArray AllMessagesWhereChannelName(final String channel_name, final int after) {
+    public JSONArray AllMessagesWhereChannelName(final String channel_name, final int after) {
 
         final JSONArray messages = new JSONArray();
 
@@ -110,13 +91,14 @@ public class Database {
 
             final int channel_id = channelIdWhereName(channel_name);
             if (channel_id != 0) {
-                ResultSet rs = selectQuery("SELECT json from table_messages " + "WHERE channel_id=" + channel_id + ";");
+                ResultSet rs = selectQuery("SELECT json from table_messages WHERE channel_id=" + channel_id + ";");
 
                 int activeMessage = 1;
                 while (rs.next()) {
-                    if(activeMessage >= after || after == 0){
-                        String Smessage = rs.getString("json");
-                        messages.put(Json_Encode_Decode.decodeJson((Smessage.substring(1, Smessage.length() - 1))));
+                    if (activeMessage >= after || after == 0) {
+                        String message = rs.getString("json");
+                        message = message.substring(1, message.length() - 1);
+                        messages.put(new JSONObject(message));
                     }
 
                     activeMessage++;
@@ -127,9 +109,10 @@ public class Database {
         } finally {
             return messages;
         }
+
     }
 
-    public static boolean addMessage(final byte[] json, final String channel_name) {
+    public boolean addMessage(final byte[] json, final String channel_name) {
 
         try {
             final int channel_id = channelIdWhereName(channel_name);
@@ -146,7 +129,7 @@ public class Database {
         return false;
     }
 
-    public static boolean addChannel(final String channel_name) {
+    public boolean addChannel(final String channel_name) {
         try {
             PreparedStatement pstmt = conn.prepareStatement("INSERT INTO table_channels(name) VALUES(?);");
             pstmt.setString(1, channel_name);
@@ -156,6 +139,25 @@ public class Database {
 
         } finally {
             return false;
+        }
+    }
+
+    public Integer getChannelMessageNumber(final String channel_name) {
+        int result = 0;
+        try {
+
+            final int channel_id = channelIdWhereName(channel_name);
+            if (channel_id != 0) {
+
+                ResultSet rs = selectQuery("SELECT COUNT(*) AS messages FROM table_messages WHERE channel_id = " + channel_id + ';');
+                rs.next();
+                result = rs.getInt("messages");
+
+            }
+
+        } catch (SQLException err) {
+        } finally {
+            return result;
         }
     }
 }

@@ -13,14 +13,14 @@ import java.util.concurrent.Executors;
 
 public class App {
 
-    static Database db;
-    static ServerSocket app;
-    static ExecutorService client_Pool;
+    private Database db;
+    private static ServerSocket app;
+    private ExecutorService client_Pool;
 
-    static int clientLimit = 0;
+    private static int clientLimit = 0;
 
     public static void main(String[] args) {
-        startup(12345, 10);
+        new App(12345, 10);
     }
 
     App(final int socket, final int clientLimit) {
@@ -28,8 +28,7 @@ public class App {
         startup(socket, clientLimit);
     }
 
-
-    private static void startup(final int socket, final int clientLimit) {
+    private void startup(final int socket, final int clientLimit) {
         try {
 
             db = new Database();
@@ -45,9 +44,9 @@ public class App {
         }
     }
 
-    private static void Run() throws IOException {
+    private void Run() throws IOException {
 
-        ArrayList<String> channels = Database.channels();
+        ArrayList<String> channels = db.channels();
         ArrayList<Client_Handler> clients = new ArrayList<>();
 
         while (true) {

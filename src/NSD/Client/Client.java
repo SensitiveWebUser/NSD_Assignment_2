@@ -2,7 +2,10 @@ package NSD.Client;
 
 import NSD.Utils.Json_Encode_Decode;
 
-import java.io.*;
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.io.PrintWriter;
 import java.net.Socket;
 import java.time.LocalTime;
 
@@ -60,12 +63,11 @@ public class Client {
             json = new Json_Encode_Decode();
 
             server = new Socket(ip, socket);
-            sender = new PrintWriter(server.getOutputStream());
+            sender = new PrintWriter(server.getOutputStream(), true);
 
             new Thread(new Server_Handler(server)).start();
 
-            sender.write(Json_Encode_Decode.encodeJsonOpen(userName));
-
+            sender.println(json.encodeJsonOpen(userName));
             Run();
 
         } catch (IOException err) {
@@ -131,6 +133,7 @@ public class Client {
     private void requestPublish() {
 
         while (true) {
+
             String channel = "";
             String message = "";
 
@@ -151,11 +154,12 @@ public class Client {
                     channel = userName;
                 }
 
-                sender.println(Json_Encode_Decode.encodeJsonPublish(channel, userName, message));
+                sender.println(json.encodeJsonPublish(channel, userName, message));
                 return;
             } else {
                 System.out.println("Bad input");
             }
+
         }
 
     }
